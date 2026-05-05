@@ -1,7 +1,7 @@
 ================================================================
   Antigravity — Partner Dashboard
   설치 프로그램 및 명령어 정리
-  작성일: 2026-05-05
+  작성일: 2026-05-05  최종수정: 2026-05-05
 ================================================================
 
 ----------------------------------------------------------------
@@ -10,7 +10,8 @@
 
   Node.js       v18 이상 권장    https://nodejs.org
   npm           Node.js 설치 시 자동 포함
-  Git           선택사항 (버전 관리용)
+  Git           버전 관리         https://git-scm.com
+  GitHub CLI    저장소 생성/push  https://cli.github.com
 
 
 ----------------------------------------------------------------
@@ -136,5 +137,55 @@
     vw_monthly_revenue  월별 매출 집계
     vw_partner_ltv      파트너별 LTV
     vw_retention        계약 유지율
+
+
+----------------------------------------------------------------
+8. Git 초기화 및 GitHub push
+----------------------------------------------------------------
+
+  [ GitHub CLI 인증 ]
+
+  # 방법 1 — 브라우저 인증 (권장)
+  gh auth login
+  # → GitHub.com / HTTPS / Login with a web browser 선택
+
+  # 방법 2 — Personal Access Token
+  echo "<your-token>" | gh auth login --with-token
+
+  # 인증 상태 확인
+  gh auth status
+
+
+  [ Git 초기 설정 ]
+
+  git init                      # 로컬 저장소 초기화
+  git add .                     # 전체 파일 스테이징 (.gitignore 제외)
+  git commit -m "first commit"  # 첫 커밋
+
+
+  [ GitHub 저장소 생성 및 push ]
+
+  # 저장소 생성 + 원격 등록 + push 한 번에
+  gh repo create <저장소명> --public \
+    --description "<설명>" \
+    --source=. --remote=origin --push
+
+  # 이후 push
+  git push origin master
+
+  # 저장소 URL 확인
+  # https://github.com/<username>/<저장소명>
+
+
+  [ 이 프로젝트 저장소 ]
+  https://github.com/sujidol/Antigravity
+
+
+  [ Personal Access Token 보안 주의 ]
+  - 토큰은 대화·채팅창에 절대 입력하지 말 것
+  - 노출된 경우 즉시 폐기:
+    GitHub → Settings → Developer settings
+    → Personal access tokens → 해당 토큰 Delete
+  - 권장 권한: repo, read:org
 
 ================================================================
