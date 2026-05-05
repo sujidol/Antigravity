@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
 import { FileText } from 'lucide-react'
-import { CONTRACTS, PARTNERS } from '../data/mockData.js'
+import { useAppData } from '../hooks/useAppData.js'
 
-const fmtFull = (v) => v >= 100 ? `₩${(v/100).toFixed(0)}억` : `₩${v}M`
+const fmtFull = (v) => v >= 100 ? `₩${(v / 100).toFixed(0)}억` : `₩${v}M`
+const TODAY   = new Date('2026-05-05')
 
 const STATUS_CLS = {
   active:     'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
@@ -11,40 +12,35 @@ const STATUS_CLS = {
   pending:    'bg-blue-500/20    text-blue-300    border border-blue-500/30',
 }
 const STATUS_LABEL = { active: '활성', expired: '만료', terminated: '해지', pending: '대기' }
-const TIER_CLS     = {
-  A: 'bg-indigo-500/20 text-indigo-300',
-  B: 'bg-amber-500/20  text-amber-300',
-  C: 'bg-neutral-500/20 text-neutral-400',
-}
-
-const TODAY = new Date('2026-05-05')
-
-const CONTRACTS_WITH_PARTNER = CONTRACTS.map(c => {
-  const p = PARTNERS.find(x => x.id === c.partner_id)
-  const daysLeft = Math.ceil((new Date(c.end_date) - TODAY) / 86400000)
-  return { ...c, partnerName: p?.name, tier: p?.tier, daysLeft }
-}).sort((a, b) => new Date(a.end_date) - new Date(b.end_date))
-
-const STATUSES = ['active', 'expired', 'terminated', 'pending']
+const TIER_CLS     = { A: 'bg-indigo-500/20 text-indigo-300', B: 'bg-amber-500/20 text-amber-300', C: 'bg-neutral-500/20 text-neutral-400' }
+const STATUSES     = ['active', 'expired', 'terminated', 'pending']
 
 export default function Contracts() {
+  const { data, loading, error } = useAppData()
   const [filterStatus, setFilterStatus] = useState('')
 
+  const contractsWithMeta = useMemo(() => {
+    if (!data) return []
+    return data.CONTRACTS.map(c => {
+      const p        = data.PARTNERS.find(x => x.id === c.partner_id)
+      const daysLeft = Math.ceil((new Date(c.end_date) - TODAY) / 86400000)
+      return { ...c, partnerName: p?.name, tier: p?.tier, daysLeft }
+    }).sort((a, b) => new Date(a.end_date) - new Date(b.end_date))
+  }, [data])
+
   const contracts = useMemo(() =>
-    filterStatus ? CONTRACTS_WITH_PARTNER.filter(c => c.status === filterStatus) : CONTRACTS_WITH_PARTNER,
-    [filterStatus]
+    filterStatus ? contractsWithMeta.filter(c => c.status === filterStatus) : contractsWithMeta,
+    [contractsWithMeta, filterStatus]
   )
 
-  // Summary
-  const counts = STATUSES.reduce((m, s) => {
-    m[s] = CONTRACTS.filter(c => c.status === s).length; return m
-  }, {})
+  if (loading) return <div className="p-8 text-neutral-600 text-sm font-mono">데이터 로딩 중…</div>
+  if (error)   return <div className="p-8 text-red-400 text-sm">{error}</div>
 
-  const totalActiveValue = CONTRACTS.filter(c => c.status === 'active').reduce((s, c) => s + c.value, 0)
+  const counts           = STATUSES.reduce((m, s) => { m[s] = data.CONTRACTS.filter(c => c.status === s).length; return m }, {})
+  const totalActiveValue = data.CONTRACTS.filter(c => c.status === 'active').reduce((s, c) => s + Number(c.value), 0)
 
   return (
     <div className="p-8 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">Contracts</h1>
@@ -53,18 +49,16 @@ export default function Contracts() {
         <FileText size={20} className="text-neutral-600" />
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {STATUSES.map(s => (
-          <div key={s} className={`card cursor-pointer transition-all hover:border-neutral-600 ${filterStatus === s ? 'border-indigo-500/50 bg-indigo-500/5' : ''}`}
-            onClick={() => setFilterStatus(f => f === s ? '' : s)}>
+          <div key={s} onClick={() => setFilterStatus(f => f === s ? '' : s)}
+            className={`card cursor-pointer transition-all hover:border-neutral-600 ${filterStatus === s ? 'border-indigo-500/50 bg-indigo-500/5' : ''}`}>
             <p className="text-xs text-neutral-500 uppercase tracking-widest mb-1">{STATUS_LABEL[s]}</p>
             <p className={`text-2xl font-bold font-mono ${STATUS_CLS[s].split(' ')[1]}`}>{counts[s]}</p>
           </div>
         ))}
       </div>
 
-      {/* Active contract total value */}
       <div className="card flex items-center gap-4 bg-indigo-500/5 border-indigo-500/20">
         <div className="flex-1">
           <p className="text-xs text-neutral-500 uppercase tracking-widest">활성 계약 총 규모</p>
@@ -73,7 +67,6 @@ export default function Contracts() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="card overflow-hidden p-0">
         <table className="w-full text-sm">
           <thead>
@@ -85,34 +78,27 @@ export default function Contracts() {
           </thead>
           <tbody>
             {contracts.map(c => {
-              const urgency = c.status === 'active' && c.daysLeft <= 30 ? 'text-red-400'
-                            : c.status === 'active' && c.daysLeft <= 90 ? 'text-amber-400'
-                            : 'text-neutral-400'
+              const urgency = c.status === 'active' && c.daysLeft <= 30  ? { text: 'text-red-400',   bg: 'bg-red-500/15',   label: '긴급' }
+                            : c.status === 'active' && c.daysLeft <= 90  ? { text: 'text-amber-400', bg: 'bg-amber-500/15', label: '주의' }
+                            : c.status === 'active'                      ? { text: 'text-blue-400',  bg: 'bg-blue-500/15',  label: '검토' }
+                            : null
               return (
                 <tr key={c.id} className="border-b border-neutral-800/40 hover:bg-neutral-800/30 transition-colors">
                   <td className="px-5 py-3 font-medium text-white">{c.partnerName}</td>
                   <td className="px-5 py-3 text-neutral-400 max-w-[180px] truncate">{c.title}</td>
                   <td className="px-5 py-3">
-                    {c.tier && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${TIER_CLS[c.tier]}`}>
-                        {c.tier}
-                      </span>
-                    )}
+                    {c.tier && <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${TIER_CLS[c.tier]}`}>{c.tier}</span>}
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_CLS[c.status]}`}>
-                      {STATUS_LABEL[c.status]}
-                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_CLS[c.status]}`}>{STATUS_LABEL[c.status]}</span>
                   </td>
                   <td className="px-5 py-3 font-mono text-emerald-400">{fmtFull(c.value)}</td>
                   <td className="px-5 py-3 font-mono text-xs text-neutral-500">{c.start_date}</td>
                   <td className="px-5 py-3 font-mono text-xs text-neutral-300">{c.end_date}</td>
                   <td className="px-5 py-3">
-                    {c.status === 'active' ? (
-                      <span className={`font-mono text-xs ${urgency}`}>
-                        {c.daysLeft > 0 ? `${c.daysLeft}일` : '오늘'}
-                      </span>
-                    ) : <span className="text-neutral-700 text-xs">—</span>}
+                    {urgency
+                      ? <span className={`font-mono text-xs ${urgency.text}`}>{c.daysLeft > 0 ? `${c.daysLeft}일` : '오늘'}</span>
+                      : <span className="text-neutral-700 text-xs">—</span>}
                   </td>
                 </tr>
               )
