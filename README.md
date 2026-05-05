@@ -3,6 +3,8 @@
 > 비즈니스 파트너 매출·리스크·성과 기반 의사결정 시스템  
 > Mini-CRM + BI 대시보드 · React + Express + Supabase (PostgreSQL)
 
+**GitHub**: https://github.com/sujidol/Antigravity
+
 ---
 
 ## 스크린샷
